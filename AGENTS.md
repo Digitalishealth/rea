@@ -1,82 +1,55 @@
-# Repository Guidelines
+# Repository guidelines
 
-## Product and Authority
+REA provides local reverse-engineering workflows through shared CLI/MCP semantics. Preserve observations, derivations, inferences, unknowns, Evidence provenance and session semantics across both adapters. Provider setup lives in [README.md](README.md#choosing-a-deep-analysis-provider).
 
-REA is a local-only reverse-engineering tool with shared CLI/MCP workflows. Distinguish observations, derivations, inferences, and unknowns; preserve Evidence provenance and session semantics through both adapters. Provider support and setup live in [README.md](README.md#choosing-a-deep-analysis-provider) and its linked guides.
+## Product and authority
 
-Follow the [contribution scope and fail-closed integration rule](CONTRIBUTING.md#contribution-scope). Do not integrate capabilities while material scope, authority, side-effect, or required verification questions remain unresolved. For new providers or capabilities involving target execution, injection, mutation, or protection recovery, seek the required maintainer scope decision before substantial implementation for integration. Welcome early proposals, small exploratory prototypes, and draft PRs that help resolve questions; they do not authorize integration.
+Follow [CONTRIBUTING.md](CONTRIBUTING.md#contribution-scope). Unresolved scope, authority, side effects or required proof block integration. New capabilities involving target execution, injection, mutation or protection recovery need the maintainer's scope decision before substantial integration work. Proposals and small exploratory drafts may resolve questions; they do not authorise integration.
 
-Ghidra uses ephemeral databases without modifying executable bytes or controlling a GUI; Windows Ghidra P0 has no mutation authority. IDA analysis is read-only; never save or close an attached GUI database.
+Ghidra uses ephemeral databases without modifying executable bytes or controlling a GUI. Windows Ghidra P0 has no mutation authority. IDA analysis is read-only; never save or close an attached GUI database.
 
-Configuration changes must be additive and idempotent, with backups. Installers must not install or upgrade unrelated software, including Homebrew, Node.js, npm, Java, or Ghidra. Ghidra and IDA are bring-your-own. `rea setup` must show its planned changes and require approval before writing files or installing Hopper.
+Configuration changes must be additive, idempotent and backed up. Installers must not install/upgrade unrelated software (Homebrew, Node, npm, Java or Ghidra); Ghidra/IDA are bring-your-own. `rea setup` must show planned changes and require approval before writes or Hopper installation.
 
-Preserve caller-selected inputs and local evidence, including output, URLs, paths, digests, and metadata. Redact transport authentication credentials and explicitly marked sensitive values; do not infer secrecy from names or text patterns. Do not persist the ambient environment merely because a child inherits it.
+Preserve caller-selected local evidence, paths, URLs, digests and metadata. Redact transport credentials and explicitly sensitive values; names/patterns alone do not establish secrecy. Do not persist the ambient environment merely because a child inherits it.
 
-## Architecture and Cleanup
+## Architecture and cleanup
 
-Dependencies flow inward: domain semantics and contracts, provider adapters, shared application workflows, then CLI/MCP adapters. Keep engine protocols and provider-specific code out of domain/application layers. See [docs/architecture.mermaid](docs/architecture.mermaid) when changing composition.
+Dependencies flow inward through domain contracts, provider adapters, shared application workflows, then CLI/MCP adapters. Keep provider protocols out of domain/application layers. Read [docs/architecture.mermaid](docs/architecture.mermaid) for composition work and [docs/tool-design.md](docs/tool-design.md) for tool design.
 
-Give each interpretation and resource a clear owner. Consumers must use that owner's parsed facts rather than reinterpret raw source. Preserve identity, omission, uncertainty, and source evidence across boundaries. Retain ownership of resources whose cleanup failed. Reuse `src/process/` supervision and identity primitives; a PID and executable path alone do not establish ownership after exit or reuse.
+Give parsed facts and resources one owner. Consumers use that owner's interpretation, preserving identity, omission, uncertainty and source evidence. Normalise once with format-aware parsers. Keep proof of ownership distinct from validity/editability/readiness; malformed owned data may still be removable. Unknown identity/applicability must remain unknown.
 
-Keep proof of ownership separate from validity, editability, and readiness. Malformed owned data may still be safely removable. Unresolved identity or applicability must remain unknown rather than be treated as absent, foreign, or aligned.
+For bugs or review fixes, inspect the producing boundary and affected consumers; fix the ownership/representation rather than layering downstream repairs. Complete directly related refactoring and remove superseded representations only after consumer verification. Explain any remaining cleanup. Avoid abstractions for imagined complexity.
 
-Assess brittleness in touched code during implementation, debugging, review, and maintenance. Fix the producing representation or ownership rule before adding downstream repairs. Normalize once at the owning boundary using format-aware parsers. Remove superseded representations, aliases, wrappers, and redundant tests after verifying affected consumers. Introduce abstractions only when they remove observed complexity.
+Retain ownership of resources whose cleanup failed. Reuse `src/process/` supervision and identity primitives; PID/executable path alone do not prove ownership after exit/reuse. Parse unknown inputs; model expected errors using the tagged algebra and `Result`. Preserve original values and explicit unknowns when normalisation loses information. File paths, file URLs and HTTP paths differ.
 
-When fixing a bug, inspect the producing boundary and affected consumers for duplicated interpretation or unclear ownership. Complete any directly related refactor in the same change and remove superseded code. Passing regression tests alone does not establish that the brittleness is resolved. If related cleanup remains, explain what remains and why.
-
-When addressing a review thread, inspect the producing boundary and affected consumers for brittleness. Complete directly related refactoring in the same change. Before resolving the thread, explain the root cause, structural fix, validation, and any remaining cleanup.
-
-Parse unknown boundary values and model expected failures with the tagged error algebra and `Result`. Preserve partial facts and meaningful failure reasons. Keep identity and lookup values separate from display formatting; preserve source values and explicit unknowns when normalization loses information. Absolute paths, file URLs, and HTTP paths have different semantics.
-
-Validate advertised JSON Schemas after SDK conversion against their declared dialect and actual clients. Bind handlers to named contracts with exact types; catalog ordering must never select an operation or schema.
+Validate advertised JSON Schemas against their declared dialect and actual clients after SDK conversion. Bind handlers to named exact contracts; catalog ordering cannot select operations/schemas. Tool limits must follow real format/protocol/authority/resource constraints, account for expansion before allocation and derive completeness from examined coverage.
 
 ## Performance
 
-Design analysis workflows and agent interfaces for efficiency from the first
-implementation. Correctness, useful answers, Evidence provenance, caller choices,
-compatibility and safe resource bounds remain required.
+Optimise agent context first, analysis time second, CPU/memory third while preserving correctness, provenance, caller choices, compatibility and safe resource bounds. Return sufficient evidence/limitations, offer retained complete Evidence, and honour requested detail. Count whole-task schemas, calls and retries. Reuse validated work with correct cache keys, invalidation/lifetime and live-state freshness. Bound concurrency and retained state.
 
-Optimize in this order:
-
-1. Agent tokens and context. Return the smallest sufficient answer with
-   necessary provenance, coverage and limitations. Use task selection,
-   summaries, paging and retained Evidence where supported; honor requested
-   detail and keep complete Evidence accessible. Count the whole task,
-   including schemas, extra calls and retries.
-2. Analysis time. Reuse validated results and shared work. Cache keys must
-   cover result-affecting inputs; define invalidation and lifetime. Validate
-   freshness before reporting cached live state as current.
-3. CPU and memory. Avoid unnecessary work and copies; bound concurrency,
-   retained state and serialization growth.
-
-For changes affecting these costs, measure representative completed tasks and
-compare equivalent workflows before and after where available. Report token
-usage, elapsed time, CPU time and peak process-family memory. Separate cold
-and warm runs, label estimates, and state unmeasured costs. Fewer bytes alone
-do not establish fewer tokens or faster analysis.
+For cost-affecting changes compare equivalent representative completed workflows where available: tokens, elapsed/CPU time and peak process-family memory. Separate cold/warm results, estimates and unmeasured costs; fewer bytes alone do not prove faster analysis.
 
 ## Development
 
-Use [.nvmrc](.nvmrc) and `package.json#packageManager` for the pinned toolchain. Cursor Cloud may place older Node.js first on `PATH`; environment setup installs the pinned toolchain under `/usr/local/bin`.
+Use `.nvmrc` and `package.json#packageManager`. If the environment selects an older Node, fix PATH to the already-installed pinned toolchain.
 
-- `npm ci`: install locked dependencies.
-- `npm run build:cached`: build the runtime and packaged skill.
+- `npm ci`: locked dependencies.
+- `npm run build:cached`: runtime and packaged skill.
 - `npm run test:local -- PATH...`: source tests without building.
-- `npm run test:focused -- PATH...`: exact tests with their required artifacts.
-- `npm run check:fast`: cached typecheck/lint and the pre-push check.
-- `npm run docs:check`: validate generated documentation.
+- `npm run test:focused -- PATH...`: exact tests and required artefacts.
+- `npm run check:fast`: cached typecheck/lint and pre-push check.
+- `npm run docs:check`: generated documentation validation.
 
-Use relevant checks for the change. The complete local gate, `npm run check:pr`, is optional for broad changes or CI diagnosis. See [CONTRIBUTING.md](CONTRIBUTING.md) for development, generated-file ownership, and release conventions.
+Use focused checks during implementation; `npm run check:pr` is the optional complete local gate for broad changes/CI diagnosis. Follow [CONTRIBUTING.md](CONTRIBUTING.md) for generated ownership and releases. Preserve the managed Turborepo block below: turbo can re-add it; this change does not opt out or change runtime configuration.
 
-`docs/public/product-catalog.json`, `docs/verification/managed-conformance-*.json`, and `skills/` are ignored outputs. Edit source contracts and `.agents/skills/reverse-engineer-anything/`, then regenerate as needed. `.cache/mcp-tool-catalog.json` is test metadata; runtime builds and source checking do not consume it. Never commit binaries, provider project documents, credentials, `dist/`, `node_modules/`, or local planning artifacts.
+Edit source contracts and `.agents/skills/reverse-engineer-anything/`; generated `docs/public/product-catalog.json`, `docs/verification/managed-conformance-*.json` and `skills/` are ignored. `.cache/mcp-tool-catalog.json` is test metadata. Never commit binaries, provider documents, credentials, build/dependency outputs or local plans.
 
-## Tool and Test Changes
+## Tests and delivery
 
-For tool design, follow [docs/tool-design.md](docs/tool-design.md): start from the analyst question, reuse existing contracts, preserve caller choices, and return useful evidence inline. Limits must follow real format, protocol, authority, or resource constraints. Account for representation expansion before allocation; derive completeness from examined coverage.
+For tests/provider claims read [docs/testing.md](docs/testing.md). Prefer real public CLI/MCP workflows, then production-boundary integration, then producer goldens; module tests cover distinct semantics. Preserve malformed-input, cancellation, cleanup, permission, capacity and target-identity coverage. Simulated providers do not establish live behaviour.
 
-For test changes or provider claims, use [docs/testing.md](docs/testing.md). Prefer real public CLI/MCP workflows, then production-boundary integration, then producer goldens. Keep module tests for distinct semantics stronger workflows cannot reliably reproduce. Preserve malformed-input, cancellation, cleanup, permission, capacity, and target-identity coverage when pruning. Report unverified coverage explicitly; simulated providers do not establish real-provider behavior.
-
-Use Conventional Commit subjects and PR titles. Mark breaking changes with `!` or a `BREAKING CHANGE:` footer. Describe behavior changes, relevant validation, and real-provider verification scope.
+Finish the requested scope with relevant checks, repair routine failures and stop without idle/backlog work. Delegate bounded work only when useful and preserve existing authority. Avoid repeated review of unchanged work. Use Conventional Commit/PR subjects and breaking-change markers. State changed files, checks/omissions, provider scope and residual risk; distinguish implementation, release readiness and release. Publishing/integration requires the applicable maintainer authority.
 
 <!-- BEGIN:turborepo-agent-rules -->
 
